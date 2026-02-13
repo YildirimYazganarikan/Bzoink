@@ -93,6 +93,12 @@ ipcMain.handle('save-video', async (event, buffer, defaultFilename) => {
   }
 });
 
+// IPC: Open URL in system browser (for Stripe payment)
+ipcMain.handle('open-external', async (event, url) => {
+  const { shell } = require('electron');
+  await shell.openExternal(url);
+});
+
 // Quit when all windows are closed (except on macOS)
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

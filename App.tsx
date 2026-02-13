@@ -3,6 +3,7 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import GameCanvas, { GameCanvasHandle } from './components/GameCanvas';
 import SettingsMenu from './components/SettingsMenu';
 import ShareOverlay from './components/ShareOverlay';
+import PaywallOverlay from './components/PaywallOverlay';
 import { GameSettings } from './types';
 import { DEFAULT_SETTINGS } from './constants';
 import { Settings2, Maximize, Minimize } from 'lucide-react';
@@ -31,12 +32,39 @@ const saveProfile = (profile: UserProfile) => {
   localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
 };
 
+// ---- Session / Unlock (localStorage) ----
+const MAX_FREE_SESSIONS = 30;
+const SESSION_KEY = 'bzoink1_sessions';
+const UNLOCK_KEY = 'bzoink1_unlocked';
+const STRIPE_PAYMENT_URL = 'https://buy.stripe.com/test_5kQ4gBgDH0oVdi40fdfQI00';
+
+const getSessionCount = (): number => {
+  try { return parseInt(localStorage.getItem(SESSION_KEY) || '0', 10); } catch { return 0; }
+};
+const incrementSession = (): number => {
+  const count = getSessionCount() + 1;
+  localStorage.setItem(SESSION_KEY, String(count));
+  return count;
+};
+const isGameUnlocked = (): boolean => {
+  return localStorage.getItem(UNLOCK_KEY) === 'true';
+};
+const unlockGame = (email: string) => {
+  localStorage.setItem(UNLOCK_KEY, 'true');
+  localStorage.setItem('bzoink1_purchase_email', email);
+};
+
 const App: React.FC = () => {
   const [settings, setSettings] = useState<GameSettings>(DEFAULT_SETTINGS);
   const [isPaused, setIsPaused] = useState(true);
   const [isLanding, setIsLanding] = useState(true);
   const [gameState, setGameState] = useState({ health: DEFAULT_SETTINGS.maxHealth, score: 0, kills: 0 });
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Session / paywall
+  const [sessionsPlayed, setSessionsPlayed] = useState(getSessionCount);
+  const [unlocked, setUnlocked] = useState(isGameUnlocked);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   // Username prompt
   const [profile, setProfile] = useState<UserProfile>(loadProfile);
@@ -147,12 +175,18 @@ const App: React.FC = () => {
   };
 
   const handleStart = () => {
+    // Check if trial exhausted
+    if (!unlocked && sessionsPlayed >= MAX_FREE_SESSIONS) {
+      setShowPaywall(true);
+      return;
+    }
+    const newCount = incrementSession();
+    setSessionsPlayed(newCount);
     initAudio();
     setIsLanding(false);
     setIsPaused(false);
     setShowGameOver(false);
     setRecordedBlob(null);
-    // Give a tick for canvas to render, then start recording
     setTimeout(startRecording, 100);
   };
 
@@ -174,8 +208,16 @@ const App: React.FC = () => {
   }, []);
 
   const handlePlayAgain = () => {
+    // Check paywall before allowing another game
+    if (!unlocked && sessionsPlayed >= MAX_FREE_SESSIONS) {
+      setShowGameOver(false);
+      setShowPaywall(true);
+      return;
+    }
+    const newCount = incrementSession();
+    setSessionsPlayed(newCount);
     setShowGameOver(false);
-    setIsPaused(false); // Unpause when playing again
+    setIsPaused(false);
     setRecordedBlob(null);
     setGameState({ health: settings.maxHealth, score: 0, kills: 0 });
     setTimeout(startRecording, 100);
@@ -300,6 +342,12 @@ const App: React.FC = () => {
               KILLS <span className={`font-medium ml-2 transition-colors duration-300 ${isDead ? 'text-red-400' : 'text-white'}`}>{gameState.kills}</span>
             </div>
           </div>
+          {/* Remaining sessions indicator (only show if not unlocked) */}
+          {!unlocked && (
+            <div className="text-white/15 text-[8px] tracking-[0.3em] uppercase mt-1">
+              {Math.max(0, MAX_FREE_SESSIONS - sessionsPlayed)} sessions remaining
+            </div>
+          )}
         </div>
       )}
 
@@ -370,6 +418,27 @@ const App: React.FC = () => {
           profile={profile}
           onPlayAgain={handlePlayAgain}
           onClose={handleCloseGameOver}
+        />
+      )}
+
+      {/* Paywall Overlay */}
+      {showPaywall && (
+        <PaywallOverlay
+          sessionsPlayed={sessionsPlayed}
+          maxFreeSessions={MAX_FREE_SESSIONS}
+          onUnlock={(email) => {
+            unlockGame(email);
+            setUnlocked(true);
+            setShowPaywall(false);
+          }}
+          onOpenPayment={() => {
+            const electronAPI = (window as any).electronAPI;
+            if (electronAPI?.openExternal) {
+              electronAPI.openExternal(STRIPE_PAYMENT_URL);
+            } else {
+              window.open(STRIPE_PAYMENT_URL, '_blank');
+            }
+          }}
         />
       )}
 
