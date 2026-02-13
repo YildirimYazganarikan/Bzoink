@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -6,64 +6,55 @@ const fs = require('fs');
 // Disable GPU hardware acceleration entirely to prevent EGL init failures
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('disable-gpu-compositing');
-app.commandLine.appendSwitch('disable-gpu-sandbox');
 app.commandLine.appendSwitch('disable-software-rasterizer');
-app.commandLine.appendSwitch('use-angle', 'default');
+app.commandLine.appendSwitch('disable-gpu-compositing');
 
-const isDev = !app.isPackaged;
+let mainWindow = null;
 
 function createWindow() {
-  const mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 720,
+  mainWindow = new BrowserWindow({
+    width: 1400,
+    height: 900,
     minWidth: 800,
     minHeight: 600,
-    title: 'Nebula Survivor',
-    icon: path.join(__dirname, '..', 'build', 'icon.png'),
     backgroundColor: '#000000',
+    icon: path.join(__dirname, '../build/icon.png'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.cjs'),
-      contextIsolation: true,
       nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.cjs'),
     },
-    // Game-friendly window settings
     autoHideMenuBar: true,
-    show: false, // Show when ready to prevent flash
+    frame: true,
+    show: false,
   });
 
-  // Show window when content is ready
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // Fallback: force show after 5 seconds if ready-to-show never fires
-  setTimeout(() => {
-    if (!mainWindow.isDestroyed() && !mainWindow.isVisible()) {
-      mainWindow.show();
-    }
-  }, 5000);
+  // Hide the menu bar
+  mainWindow.setMenuBarVisibility(false);
+
+  // Load the app
+  const isDev = !app.isPackaged;
 
   if (isDev) {
-    // In dev mode, load from Vite dev server
     mainWindow.loadURL('http://localhost:3000');
-    // Uncomment to open DevTools in dev:
-    // mainWindow.webContents.openDevTools();
   } else {
-    // In production, load the built files
-    mainWindow.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
+    mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
 
-  // Remove menu bar in production
-  if (!isDev) {
-    mainWindow.setMenu(null);
-  }
-
-  // Allow fullscreen toggle with F11
+  // F11 for fullscreen toggle
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.key === 'F11') {
       mainWindow.setFullScreen(!mainWindow.isFullScreen());
+      event.preventDefault();
     }
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
   });
 }
 
@@ -71,21 +62,32 @@ app.whenReady().then(() => {
   createWindow();
 
   app.on('activate', () => {
-    // On macOS re-create window when dock icon is clicked and no windows exist
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
     }
   });
 });
 
-// IPC: Save recorded video to Desktop
-ipcMain.handle('save-video', async (event, buffer, filename) => {
+// IPC: Save recorded video with file dialog
+ipcMain.handle('save-video', async (event, buffer, defaultFilename) => {
   try {
-    const desktopPath = path.join(require('os').homedir(), 'Desktop');
-    const filePath = path.join(desktopPath, filename);
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save Bzoink1 Session Video',
+      defaultPath: path.join(require('os').homedir(), 'Desktop', defaultFilename),
+      filters: [
+        { name: 'MP4 Video', extensions: ['mp4'] },
+        { name: 'WebM Video', extensions: ['webm'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return { success: false, canceled: true };
+    }
+
     const uint8Array = new Uint8Array(buffer);
-    fs.writeFileSync(filePath, uint8Array);
-    return { success: true, path: filePath };
+    fs.writeFileSync(result.filePath, uint8Array);
+    return { success: true, path: result.filePath };
   } catch (err) {
     return { success: false, error: err.message };
   }

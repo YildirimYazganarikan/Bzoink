@@ -1,8 +1,8 @@
 {
-  "name": "nebula-survivor",
-  "productName": "Nebula Survivor",
+  "name": "bzoink1",
+  "productName": "Bzoink1",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "A space survival game - dodge enemies, collect wisdom, survive the nebula.",
   "author": "Asvalin Games",
   "type": "module",
@@ -34,8 +34,8 @@
     "wait-on": "^8.0.0"
   },
   "build": {
-    "appId": "com.asvalingames.nebula-survivor",
-    "productName": "Nebula Survivor",
+    "appId": "com.asvalingames.bzoink1",
+    "productName": "Bzoink1",
     "directories": {
       "output": "release"
     },
@@ -68,7 +68,7 @@
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Nebula Survivor"
+      "shortcutName": "Bzoink1"
     },
     "mac": {
       "target": [
@@ -78,7 +78,7 @@
       "category": "public.app-category.games"
     },
     "dmg": {
-      "title": "Nebula Survivor",
+      "title": "Bzoink1",
       "contents": [
         {
           "x": 130,
