@@ -4,13 +4,23 @@ import { GameSettings, WeaponType } from '../types';
 import { Copy, Check, RotateCcw } from 'lucide-react';
 import { DEFAULT_SETTINGS } from '../constants';
 
+interface UserProfile {
+  username: string;
+  instagram: string;
+  facebook: string;
+  twitch: string;
+  x: string;
+}
+
 interface SettingsMenuProps {
   settings: GameSettings;
   onUpdate: (newSettings: GameSettings) => void;
   onClearEnemies: () => void;
+  profile?: UserProfile;
+  onProfileUpdate?: (profile: UserProfile) => void;
 }
 
-const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate, onClearEnemies }) => {
+const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate, onClearEnemies, profile, onProfileUpdate }) => {
   const [copied, setCopied] = useState(false);
 
   const handleChange = (key: keyof GameSettings, value: string | number | boolean) => {
@@ -18,6 +28,12 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate, onClear
       ...settings,
       [key]: value,
     });
+  };
+
+  const handleProfileChange = (key: keyof UserProfile, value: string) => {
+    if (profile && onProfileUpdate) {
+      onProfileUpdate({ ...profile, [key]: value });
+    }
   };
 
   const copyToClipboard = () => {
@@ -63,60 +79,73 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate, onClear
   );
 
   const renderToggle = (label: string, key: keyof GameSettings) => (
-      <div className="flex items-center justify-between mb-4">
-          <label className="text-zinc-500 text-xs uppercase tracking-wider">{label}</label>
-          <button 
-              onClick={() => handleChange(key, !settings[key])}
-              className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${settings[key] ? 'bg-white' : 'bg-zinc-800'}`}
-          >
-              <div className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-black transition-transform duration-300 ${settings[key] ? 'translate-x-5' : 'translate-x-0'}`} />
-          </button>
-      </div>
+    <div className="flex items-center justify-between mb-4">
+      <label className="text-zinc-500 text-xs uppercase tracking-wider">{label}</label>
+      <button
+        onClick={() => handleChange(key, !settings[key])}
+        className={`w-10 h-5 rounded-full relative transition-colors duration-300 ${settings[key] ? 'bg-white' : 'bg-zinc-800'}`}
+      >
+        <div className={`absolute top-1 left-1 w-3 h-3 rounded-full bg-black transition-transform duration-300 ${settings[key] ? 'translate-x-5' : 'translate-x-0'}`} />
+      </button>
+    </div>
   );
 
   const renderSpawnRateInput = () => {
     const currentRate = settings.enemySpawnRate > 0 ? Math.round(60000 / settings.enemySpawnRate) : 0;
     return (
-        <div className="mb-4">
-          <div className="flex justify-between mb-1">
-            <label className="text-zinc-500 text-xs uppercase tracking-wider">Spawn Rate</label>
-            <span className="text-zinc-400 text-xs font-mono">{currentRate}/min</span>
-          </div>
-          <input
-            type="range"
-            min={10} max={1200} step={10}
-            value={currentRate}
-            onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                if (val > 0) handleChange("enemySpawnRate", 60000 / val);
-            }}
-            className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
-          />
+      <div className="mb-4">
+        <div className="flex justify-between mb-1">
+          <label className="text-zinc-500 text-xs uppercase tracking-wider">Spawn Rate</label>
+          <span className="text-zinc-400 text-xs font-mono">{currentRate}/min</span>
         </div>
+        <input
+          type="range"
+          min={10} max={1200} step={10}
+          value={currentRate}
+          onChange={(e) => {
+            const val = parseFloat(e.target.value);
+            if (val > 0) handleChange("enemySpawnRate", 60000 / val);
+          }}
+          className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-white"
+        />
+      </div>
     );
   };
 
   const renderWeaponSelector = () => {
-      const weapons: WeaponType[] = ['blaster', 'shotgun', 'machinegun', 'nuke', 'sniper'];
-      return (
-          <div className="mb-4">
-              <label className="text-zinc-500 text-xs uppercase tracking-wider block mb-2">Active Gun</label>
-              <div className="grid grid-cols-3 gap-2">
-                  {weapons.map(w => (
-                      <button
-                        key={w}
-                        onClick={() => handleChange('activeWeapon', w)}
-                        className={`text-[10px] uppercase py-2 px-1 rounded border transition-colors ${settings.activeWeapon === w 
-                            ? 'bg-white text-black border-white' 
-                            : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'}`}
-                      >
-                          {w}
-                      </button>
-                  ))}
-              </div>
-          </div>
-      );
+    const weapons: WeaponType[] = ['blaster', 'shotgun', 'machinegun', 'nuke', 'sniper'];
+    return (
+      <div className="mb-4">
+        <label className="text-zinc-500 text-xs uppercase tracking-wider block mb-2">Active Gun</label>
+        <div className="grid grid-cols-3 gap-2">
+          {weapons.map(w => (
+            <button
+              key={w}
+              onClick={() => handleChange('activeWeapon', w)}
+              className={`text-[10px] uppercase py-2 px-1 rounded border transition-colors ${settings.activeWeapon === w
+                ? 'bg-white text-black border-white'
+                : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-700'}`}
+            >
+              {w}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
   };
+
+  const renderTextInput = (label: string, value: string, placeholder: string, onChange: (val: string) => void) => (
+    <div className="mb-3">
+      <label className="text-zinc-500 text-[10px] uppercase tracking-wider block mb-1">{label}</label>
+      <input
+        type="text"
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full bg-zinc-900 border border-zinc-800 rounded px-3 py-1.5 text-xs text-white placeholder:text-zinc-700 outline-none focus:border-zinc-600 transition-colors"
+      />
+    </div>
+  );
 
   return (
     <div className="absolute top-0 left-0 h-full w-80 z-50 flex flex-col bg-black/80 border-r border-zinc-900 text-zinc-200 shadow-2xl">
@@ -133,6 +162,19 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate, onClear
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+
+        {/* Profile & Social Section */}
+        {profile && onProfileUpdate && (
+          <section>
+            <h3 className="text-white text-sm font-medium mb-4">Profile & Socials</h3>
+            {renderTextInput("Username", profile.username, "Your username", (v) => handleProfileChange('username', v))}
+            {renderTextInput("Instagram", profile.instagram, "@username", (v) => handleProfileChange('instagram', v))}
+            {renderTextInput("Facebook", profile.facebook, "username or page", (v) => handleProfileChange('facebook', v))}
+            {renderTextInput("Twitch", profile.twitch, "username", (v) => handleProfileChange('twitch', v))}
+            {renderTextInput("X (Twitter)", profile.x, "@handle", (v) => handleProfileChange('x', v))}
+          </section>
+        )}
+
         <section>
           <h3 className="text-white text-sm font-medium mb-4">Game Modes</h3>
           {renderToggle("Draining Bullets", "modeDrainingBullets")}
@@ -168,7 +210,7 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate, onClear
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-white text-sm font-medium">Enemies</h3>
             <button onClick={onClearEnemies} className="px-2 py-0.5 text-[10px] uppercase tracking-wider font-medium bg-red-500/10 text-red-400 border border-red-500/20 hover:bg-red-500/20 rounded transition-colors">
-                Clear Enemies
+              Clear Enemies
             </button>
           </div>
           {renderColorInput("Color", "enemyColor")}
@@ -201,16 +243,16 @@ const SettingsMenu: React.FC<SettingsMenuProps> = ({ settings, onUpdate, onClear
         </section>
 
         <section>
-            <h3 className="text-white text-sm font-medium mb-4">Perks & Quotes</h3>
-            {renderNumberInput("Perk Chance (0-1)", "perkSpawnChance", 0, 1, 0.05)}
-            {renderNumberInput("Perk Duration (ms)", "perkDuration", 1000, 20000, 500)}
-            {renderNumberInput("Quote Interval (ms)", "quoteSpawnInterval", 5000, 120000, 1000)}
+          <h3 className="text-white text-sm font-medium mb-4">Perks & Quotes</h3>
+          {renderNumberInput("Perk Chance (0-1)", "perkSpawnChance", 0, 1, 0.05)}
+          {renderNumberInput("Perk Duration (ms)", "perkDuration", 1000, 20000, 500)}
+          {renderNumberInput("Quote Interval (ms)", "quoteSpawnInterval", 5000, 120000, 1000)}
         </section>
 
         <section>
-            <h3 className="text-white text-sm font-medium mb-4">Nuke</h3>
-            {renderNumberInput("Blast Radius", "nukeBlastRadius", 100, 2000, 50)}
-            {renderNumberInput("Distortion", "nukeDistortionStrength", 0, 0.5, 0.01)}
+          <h3 className="text-white text-sm font-medium mb-4">Nuke</h3>
+          {renderNumberInput("Blast Radius", "nukeBlastRadius", 100, 2000, 50)}
+          {renderNumberInput("Distortion", "nukeDistortionStrength", 0, 0.5, 0.01)}
         </section>
       </div>
     </div>

@@ -1,5 +1,6 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 // Fix GPU crashes on some Windows systems
 // Disable GPU hardware acceleration entirely to prevent EGL init failures
@@ -75,6 +76,19 @@ app.whenReady().then(() => {
       createWindow();
     }
   });
+});
+
+// IPC: Save recorded video to Desktop
+ipcMain.handle('save-video', async (event, buffer, filename) => {
+  try {
+    const desktopPath = path.join(require('os').homedir(), 'Desktop');
+    const filePath = path.join(desktopPath, filename);
+    const uint8Array = new Uint8Array(buffer);
+    fs.writeFileSync(filePath, uint8Array);
+    return { success: true, path: filePath };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
 });
 
 // Quit when all windows are closed (except on macOS)
