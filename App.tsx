@@ -117,7 +117,7 @@ const App: React.FC = () => {
       const canvas = document.querySelector('canvas');
       if (!canvas) return;
 
-      const videoStream = canvas.captureStream(30);
+      const videoStream = canvas.captureStream(60);
       const audioStream = getAudioStream();
 
       // Merge video + audio streams
@@ -143,7 +143,10 @@ const App: React.FC = () => {
 
       recordingMimeRef.current = mimeType.startsWith('video/mp4') ? 'video/mp4' : 'video/webm';
 
-      const mediaRecorder = new MediaRecorder(combinedStream, { mimeType });
+      const mediaRecorder = new MediaRecorder(combinedStream, {
+        mimeType,
+        videoBitsPerSecond: 8_000_000
+      });
 
       recordedChunksRef.current = [];
 
